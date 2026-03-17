@@ -3,8 +3,29 @@ const express = require('express');
 const OS = require('os');
 const bodyParser = require('body-parser');
 const mongoose = require("mongoose");
+const client = require("prom-client");
 const app = express();
 const cors = require('cors')
+
+const register = new client.Registry();
+
+client.collectDefaultMetrics({ register });
+
+const httpRequestDuration = new client.Histogram({
+    name: "http_request_duration_seconds",
+    help: "Duration of HTTP requests in seconds",
+    labelNames: ["method", "route", "status_code"],
+    buckets: [0.1, 0.3, 0.5, 1, 2, 5]
+});
+
+const httpRequestsTotal = new client.Counter({
+    name: "http_requests_total",
+    help: "Total number of HTTP requests",
+    labelNames: ["method", "route", "status_code"]
+});
+
+register.registerMetric(httpRequestDuration);
+register.registerMetric(httpRequestsTotal);
 
 const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/solar-system';
 const mongoOptions = {
@@ -23,6 +44,24 @@ if (process.env.MONGO_PASSWORD) {
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, '/')));
 app.use(cors())
+
+app.use((req, res, next) => {
+    const route = req.path;
+    const endTimer = httpRequestDuration.startTimer();
+
+    res.on("finish", () => {
+        const labels = {
+            method: req.method,
+            route,
+            status_code: String(res.statusCode)
+        };
+
+        endTimer(labels);
+        httpRequestsTotal.inc(labels);
+    });
+
+    next();
+});
 
 mongoose.connect(mongoUri, mongoOptions, function(err) {
     if (err) {
@@ -85,6 +124,11 @@ app.get('/ready',   function(req, res) {
     res.send({
         "status": "ready"
     });
+})
+
+app.get('/metrics', async function(req, res) {
+    res.setHeader('Content-Type', register.contentType);
+    res.end(await register.metrics());
 })
 
 if (require.main === module) {
