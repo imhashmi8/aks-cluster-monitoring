@@ -8,9 +8,13 @@ RUN npm install
 
 COPY . .
 
-ENV MONGO_URI=uriPlaceholder
-ENV MONGO_USERNAME=usernamePlaceholder
-ENV MONGO_PASSWORD=passwordPlaceholder
+ARG MONGO_URI=uriPlaceholder
+ARG MONGO_USERNAME=usernamePlaceholder
+ARG MONGO_PASSWORD=passwordPlaceholder
+
+ENV MONGO_URI=$MONGO_URI
+ENV MONGO_USERNAME=$MONGO_USERNAME
+ENV MONGO_PASSWORD=$MONGO_PASSWORD
 
 EXPOSE 3000
 
