@@ -5,6 +5,12 @@ grafana:
   service:
     type: ClusterIP
 
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      searchNamespace: ALL
+
 prometheus:
   service:
     type: ClusterIP
